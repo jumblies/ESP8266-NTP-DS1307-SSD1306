@@ -31,7 +31,6 @@ D2 SDA
 tmElements_t tm;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP); //Client uses default pool.ntp.org
-WiFiManager wifiManager;
 U8G2_SH1106_128X64_NONAME_F_HW_I2C OLED_1(U8G2_R0, U8X8_PIN_NONE);
 
 // Globals
@@ -47,20 +46,22 @@ const char *monthName[12] = {
 
 void drawOLED_1(void)
 {
-  char hourBuffer[10];  
-  itoa(tm.Hour,hourBuffer,10); 
+  char hourBuffer[10];
+  itoa(tm.Hour, hourBuffer, 10);
 
   char minuteBuffer[10];
-  itoa(tm.Minute,minuteBuffer,10); 
+  itoa(tm.Minute, minuteBuffer, 10);
 
   OLED_1.clearBuffer(); // clear the internal memory
   OLED_1.setFont(u8g2_font_logisoso42_tn);
-  // char buffer[7]; 
+  // char buffer[7];
   OLED_1.drawStr(0, 42, hourBuffer);
 
   OLED_1.drawStr(60, 62, minuteBuffer);
   OLED_1.sendBuffer(); // transfer internal memory to the display
 }
+
+
 
 bool getTime(const char *str)
 {
@@ -97,11 +98,20 @@ bool getDate(const char *str)
 
 void setup()
 {
+  OLED_1.begin();
+  OLED_1.setI2CAddress(0x3C * 2);
+  OLED_1.clearBuffer();
+  OLED_1.setFont(u8g2_font_ncenB14_tr);
+  OLED_1.drawStr(0,20,"Booting!");
+  OLED_1.sendBuffer();
+  
+
   Serial.begin(115200);
   while (!Serial)
   {
     delay(200);
   }
+  WiFiManager wifiManager;
 
   // ResetSettings to determine if it will work wihthout wifi
   // wifiManager.resetSettings();
@@ -134,7 +144,7 @@ void setup()
   }
 #endif
 
-  wifiManager.autoConnect("AutoConnectAP");
+  // wifiManager.autoConnect("AutoConnectAP");
   Serial.println(WiFi.localIP());
   Serial.println("DS1307RTC Read Test");
   Serial.println("-------------------");
@@ -143,9 +153,6 @@ void setup()
   timeClient.begin();
   Serial.print("Status");
   Serial.println(WiFi.status());
-  OLED_1.setI2CAddress(0x3C * 2);
-  OLED_1.begin();
-  OLED_1.setFont(u8g_font_6x10);
 }
 
 void loop()
