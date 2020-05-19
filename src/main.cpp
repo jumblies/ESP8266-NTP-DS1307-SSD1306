@@ -24,14 +24,18 @@ D2 SDA
 //local helper functions
 #include "timeDisplayHelpers.h"
 #include <U8g2lib.h>
+#include <DoubleResetDetector.h>
 
-#define setCompileTime 1
+// #define setCompileTime 1
+#define DRD_TIMEOUT 10
+#define DRD_ADDRESS 0
 
 // Instantiate objects
 tmElements_t tm;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP); //Client uses default pool.ntp.org
 U8G2_SH1106_128X64_NONAME_F_HW_I2C OLED_1(U8G2_R0, U8X8_PIN_NONE);
+DoubleResetDetector drd(DRD_TIMEOUT, DRD_ADDRESS);
 
 // Globals
 unsigned long previousMillis = 0;
@@ -60,8 +64,6 @@ void drawOLED_1(void)
   OLED_1.drawStr(60, 62, minuteBuffer);
   OLED_1.sendBuffer(); // transfer internal memory to the display
 }
-
-
 
 bool getTime(const char *str)
 {
@@ -102,9 +104,8 @@ void setup()
   OLED_1.setI2CAddress(0x3C * 2);
   OLED_1.clearBuffer();
   OLED_1.setFont(u8g2_font_ncenB14_tr);
-  OLED_1.drawStr(0,20,"Booting!");
+  OLED_1.drawStr(0, 20, "Booting!");
   OLED_1.sendBuffer();
-  
 
   Serial.begin(115200);
   while (!Serial)
@@ -113,8 +114,12 @@ void setup()
   }
   WiFiManager wifiManager;
 
-  // ResetSettings to determine if it will work wihthout wifi
-  // wifiManager.resetSettings();
+  if (drd.detectDoubleReset())
+  {
+    Serial.println("Double Reset Detected");
+    // ResetSettings to determine if it will work wihthout wifi
+    wifiManager.resetSettings();
+  }
   wifiManager.setTimeout(15);
   // wifiManager.setConfigPortalBlocking(false);
 
