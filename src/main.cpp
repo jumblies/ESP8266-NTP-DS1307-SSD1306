@@ -51,10 +51,13 @@ const char *monthName[12] = {
 void drawOLED_1(void)
 {
   char hourBuffer[10];
-  itoa(tm.Hour, hourBuffer, 10);
+  // sprintf (hourBuffer, "Time: %02u:%02u:%02u\n", hour, min, sec); //original
+    sprintf (hourBuffer, "%02u",tm.Hour);
+  // itoa(tm.Hour), hourBuffer, 10);
 
   char minuteBuffer[10];
-  itoa(tm.Minute, minuteBuffer, 10);
+  sprintf (minuteBuffer, "%02u",tm.Minute);
+  // itoa(tm.Minute, minuteBuffer, 10);
 
   OLED_1.clearBuffer(); // clear the internal memory
   OLED_1.setFont(u8g2_font_logisoso42_tn);
