@@ -49,7 +49,7 @@ TimeChangeRule *tcr;
 unsigned long previousMillis = 0;
 unsigned long previousNTPMillis = 0;
 const long interval = 1 * 1000;
-const long ntpInterval = 60 * 1000; // interval for NTP checks
+const long ntpInterval = 5 * 1000; // interval for NTP checks
 const char *monthName[12] = {
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
@@ -130,7 +130,7 @@ void setup()
   //   // ResetSettings to determine if it will work wihthout wifi
   //   wifiManager.resetSettings();
   // }
-  wifiManager.setTimeout(15);
+  // wifiManager.setTimeout(15);
   // wifiManager.setConfigPortalBlocking(false);
 
   //fetches ssid and pass and tries to connect
@@ -170,14 +170,29 @@ void setup()
 
   Serial.println("Starting UDP");
   timeClient.begin();
-  Serial.print("Status");
-  Serial.println(WiFi.status());
+
+  // Serial.println(WiFi.status());
+  // if (WiFi.status() == 3)
+  // {
+  //   Serial.printf("Wifi Connected; IP = %s", WiFi.localIP().toString().c_str());
+  // }
+  // else
+  // {
+  //   WiFi.mode(WIFI_OFF);
+  //   Serial.println("Wifi Off");
+  // }
 }
 
 void loop()
 {
+  /*Get 3 time objects: MCU time, Local time(mcu time converted to local), and RTC which should match MCU time unless drifted) */
+  // MCU time in UTC
   time_t utc = now();
+  // Conversion of MCU time to localtime via timezone
   time_t local = myTZ.toLocal(utc, &tcr);
+  // Get the RTC time as an object
+  time_t rtcTime = RTC.get();
+
   unsigned long currentMillis = millis();
   unsigned long currentNTPMillis = millis();
 
@@ -196,11 +211,15 @@ void loop()
       // RTC can be set in one fell swoop
       //  offset of hours done manually
       // RTC.set(timeClient.getEpochTime());
-      RTC.set(timeClient.getEpochTime() /*- 2208988800UL*/);
+
+      // This is pretty confusing 
+      // RTC.set(timeClient.getEpochTime() - 2208988800UL);  // this sets it to an invalid time
+      RTC.set(timeClient.getEpochTime());
     }
     else
     {
-      Serial.println("No NTP - I'm not connected");
+      // WiFi.mode(WIFI_OFF);
+      Serial.println("Wifi Off - No NTP");
     }
   }
   if (currentMillis - previousMillis >= interval)
@@ -208,12 +227,10 @@ void loop()
     previousMillis = currentMillis;
     {
       drawOLED_1(local);
-            Serial.printf("UTC_MCU_Time = %.2d:%.2d:%.2d \n",
-                    hour(utc), minute(utc), second(utc));
-      Serial.printf("Local_MCU_Time = %.2d:%.2d:%.2d \n",
-                    hour(local), minute(local), second(local));
-// The RTC is always in UTC time and local (above) is after TZ conversion.
-      Serial.printf("UTC_RTC_time= %.2d:%.2d\n", hour(RTC.get()), minute(RTC.get()));
+      Serial.printf("UTC_MCU_Time = %.2d:%.2d:%.2d \t", hour(utc), minute(utc), second(utc));
+      Serial.printf("UTC_RTC_time= %.2d:%.2d:%.2d\t", hour(rtcTime), minute(rtcTime), second(rtcTime));
+      Serial.printf("Local_MCU_Time = %.2d:%.2d:%.2d \n", hour(local), minute(local), second(local));
+      // The RTC is always in UTC time and local (above) is after TZ conversion.
     }
   }
 }
