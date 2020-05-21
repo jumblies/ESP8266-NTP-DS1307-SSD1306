@@ -28,7 +28,7 @@ D2 SDA
 #include <Timezone.h>
 
 // #define setCompileTime 1
-#define DRD_TIMEOUT 10
+#define DRD_TIMEOUT 5
 #define DRD_ADDRESS 0
 
 // Instantiate objects
@@ -130,7 +130,7 @@ void setup()
   //   // ResetSettings to determine if it will work wihthout wifi
   //   wifiManager.resetSettings();
   // }
-  // wifiManager.setTimeout(15);
+  wifiManager.setTimeout(15);
   // wifiManager.setConfigPortalBlocking(false);
 
   //fetches ssid and pass and tries to connect
