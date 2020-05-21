@@ -25,6 +25,7 @@ D2 SDA
 #include "timeDisplayHelpers.h"
 #include <U8g2lib.h>
 #include <DoubleResetDetector.h>
+#include <Timezone.h>
 
 // #define setCompileTime 1
 #define DRD_TIMEOUT 10
@@ -37,10 +38,17 @@ NTPClient timeClient(ntpUDP); //Client uses default pool.ntp.org
 U8G2_SH1106_128X64_NONAME_F_HW_I2C OLED_1(U8G2_R0, U8X8_PIN_NONE);
 DoubleResetDetector drd(DRD_TIMEOUT, DRD_ADDRESS);
 
+// Timezone Objects
+
+TimeChangeRule myDST = {"EDT", Second, Sun, Mar, 2, -240}; //UTC - 4 hours
+TimeChangeRule mySTD = {"EST", First, Sun, Nov, 2, -300};  //UTC - 5 hours
+Timezone myTZ(myDST, mySTD);
+TimeChangeRule *tcr;
+
 // Globals
 unsigned long previousMillis = 0;
 unsigned long previousNTPMillis = 0;
-const long interval = 5 * 1000;
+const long interval = 1 * 1000;
 const long ntpInterval = 60 * 1000; // interval for NTP checks
 const char *monthName[12] = {
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -48,15 +56,14 @@ const char *monthName[12] = {
 // Not needed because simply listing ip
 // const char *ntpServerName = "10.10.10.102";
 
-void drawOLED_1(void)
+void drawOLED_1(time_t locoMoco)
 {
   char hourBuffer[10];
-  // sprintf (hourBuffer, "Time: %02u:%02u:%02u\n", hour, min, sec); //original
-    sprintf (hourBuffer, "%02u",tm.Hour);
+  sprintf(hourBuffer, "%02u", hour(locoMoco));
   // itoa(tm.Hour), hourBuffer, 10);
 
   char minuteBuffer[10];
-  sprintf (minuteBuffer, "%02u",tm.Minute);
+  sprintf(minuteBuffer, "%02u", minute(locoMoco));
   // itoa(tm.Minute, minuteBuffer, 10);
 
   OLED_1.clearBuffer(); // clear the internal memory
@@ -117,12 +124,12 @@ void setup()
   }
   WiFiManager wifiManager;
 
-  if (drd.detectDoubleReset())
-  {
-    Serial.println("Double Reset Detected");
-    // ResetSettings to determine if it will work wihthout wifi
-    wifiManager.resetSettings();
-  }
+  // if (drd.detectDoubleReset())
+  // {
+  //   Serial.println("Double Reset Detected");
+  //   // ResetSettings to determine if it will work wihthout wifi
+  //   wifiManager.resetSettings();
+  // }
   wifiManager.setTimeout(15);
   // wifiManager.setConfigPortalBlocking(false);
 
@@ -154,8 +161,12 @@ void setup()
 
   // wifiManager.autoConnect("AutoConnectAP");
   Serial.println(WiFi.localIP());
-  Serial.println("DS1307RTC Read Test");
-  Serial.println("-------------------");
+
+  setSyncProvider(RTC.get); // the function to get the time from the RTC
+  if (timeStatus() != timeSet)
+    Serial.println("Unable to sync with the RTC");
+  else
+    Serial.println("RTC has set the system time");
 
   Serial.println("Starting UDP");
   timeClient.begin();
@@ -165,7 +176,8 @@ void setup()
 
 void loop()
 {
-
+  time_t utc = now();
+  time_t local = myTZ.toLocal(utc, &tcr);
   unsigned long currentMillis = millis();
   unsigned long currentNTPMillis = millis();
 
@@ -183,7 +195,8 @@ void loop()
       // unsigned long epoch = timeClient.getEpochTime() ; //-4 h for EST
       // RTC can be set in one fell swoop
       //  offset of hours done manually
-      RTC.set(timeClient.getEpochTime() - 4 * 3600);
+      // RTC.set(timeClient.getEpochTime());
+      RTC.set(timeClient.getEpochTime() /*- 2208988800UL*/);
     }
     else
     {
@@ -192,42 +205,15 @@ void loop()
   }
   if (currentMillis - previousMillis >= interval)
   {
-
     previousMillis = currentMillis;
-
-    if (RTC.read(tm))
     {
-
-      Serial.print("RTC Time = ");
-      print2digits(tm.Hour);
-      Serial.write(':');
-      print2digits(tm.Minute);
-      Serial.write(':');
-      print2digits(tm.Second);
-      // Serial.print(", Date (D/M/Y) = ");  //original
-      Serial.print(", Date (Y_M_D) = ");
-      Serial.print(tmYearToCalendar(tm.Year));
-      Serial.write('_');
-      Serial.print(tm.Month);
-      Serial.write('_');
-      Serial.print(tm.Day);
-      Serial.println();
-      drawOLED_1();
-    }
-    else
-    {
-      if (RTC.chipPresent())
-      {
-        Serial.println("The DS1307 is stopped.  Please run the SetTime");
-        Serial.println("example to initialize the time and begin running.");
-        Serial.println();
-      }
-      else
-      {
-        Serial.println("DS1307 read error!  Please check the circuitry.");
-        Serial.println();
-      }
-      // delay(1000);
+      drawOLED_1(local);
+            Serial.printf("UTC_MCU_Time = %.2d:%.2d:%.2d \n",
+                    hour(utc), minute(utc), second(utc));
+      Serial.printf("Local_MCU_Time = %.2d:%.2d:%.2d \n",
+                    hour(local), minute(local), second(local));
+// The RTC is always in UTC time and local (above) is after TZ conversion.
+      Serial.printf("UTC_RTC_time= %.2d:%.2d\n", hour(RTC.get()), minute(RTC.get()));
     }
   }
 }
